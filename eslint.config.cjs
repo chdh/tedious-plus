@@ -1,0 +1,124 @@
+const eslint     = require("@eslint/js");
+const tseslint   = require("typescript-eslint");
+const stylistic  = require("@stylistic/eslint-plugin");
+const globals    = require("globals");
+const checkFile  = require("eslint-plugin-check-file");
+
+const namingOptions = [
+   "error",
+   {
+      selector: "default",
+      format: ["camelCase"],
+      leadingUnderscore: "allow" },
+  {
+      selector: "variable",
+      modifiers: ["const"],
+      format: ["camelCase", "UPPER_CASE"],
+      leadingUnderscore: "allow" },
+  {
+      selector: "function",
+      format: null,
+      custom: {regex: "^[a-z]\\w*$", match: true} },
+  {
+      selector: "typeLike",
+      format: null,
+      custom: {regex: "^[A-Z].*", match: true} },          // allow "_"
+   {
+      selector: "import",
+      format: ["camelCase", "PascalCase"] },
+   ];
+
+const rules = {
+
+   // Additional Standard ESLint rules:
+   "curly": "error",
+   "default-case-last": "error",
+   "id-denylist": [ "error", "any", "Number", "number", "String", "string", "Boolean", "boolean", "Undefined", "undefined" ],
+   "id-match": "error",
+   "new-parens": "error",
+   "no-new": "error",
+   "no-new-func": "error",
+   "no-new-wrappers": "error",
+   "no-octal-escape": "error",
+   "no-param-reassign": "error",
+   "no-promise-executor-return": "warn",
+   "no-restricted-syntax": ["error",
+      { selector: ":not(ExpressionStatement, ForStatement) > AssignmentExpression",
+        message: "Do not nest assignments" },
+      { selector: ':not(ExpressionStatement) > CallExpression[callee.property.name=/^(sort|reverse)$/]',
+        message: "sort()/reverse() mutate in place and return the same reference. Call them as a statement, or use toSorted()/toReversed()." }],
+   "no-sequences": "error",
+   "no-template-curly-in-string": "error",
+   "no-useless-backreference": "error",
+   "no-useless-return": "error",
+   "prefer-const": "error",
+   "prefer-promise-reject-errors": "error",
+
+   // Modifications of default rules:
+   "no-constant-condition": ["error", {checkLoops: false }],
+   "no-var": "off",
+   "require-atomic-updates": "off",
+
+   // Additional plugin rules:
+   "@typescript-eslint/explicit-member-accessibility": "error",
+   "@stylistic/member-delimiter-style": "error",
+   "@typescript-eslint/naming-convention": namingOptions,
+   "@typescript-eslint/no-base-to-string": "error",
+   "@typescript-eslint/no-invalid-this": "error",                                    "no-invalid-this": "off",
+   "@typescript-eslint/no-loop-func": "error",                                       "no-loop-func": "off",
+   "@typescript-eslint/no-loss-of-precision": "error",                               "no-loss-of-precision": "off",
+   "@typescript-eslint/no-redeclare": "error",                                       "no-redeclare": "off",
+   "@typescript-eslint/no-shadow": "error",                                          "no-shadow": "off",
+   "@typescript-eslint/no-unused-expressions": "error",                              "no-unused-expressions": "off",
+   "@typescript-eslint/no-unused-vars": ["error", {argsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_"}],      "no-unused-vars": "off",
+   "@typescript-eslint/no-use-before-define": ["error", {functions: false, classes: false}], "no-use-before-define": "off",
+   "@typescript-eslint/only-throw-error": "error",
+   "@typescript-eslint/prefer-includes": "warn",
+   "@typescript-eslint/prefer-nullish-coalescing": "warn",
+   "@typescript-eslint/prefer-optional-chain": "warn",
+   "@typescript-eslint/require-await": "error",                                      "require-await": "off",
+// "@typescript-eslint/promise-function-async": "error",  // to force async handling of exceptions thrown in functions that return a promise
+   "@stylistic/semi": "error",
+
+   // Modifications of preset Typescript rules:
+   "@typescript-eslint/consistent-type-assertions": "off",
+   "@typescript-eslint/explicit-module-boundary-types": "off",
+   "@typescript-eslint/no-explicit-any": "off",
+   "@typescript-eslint/no-empty-function": "off",
+   "@typescript-eslint/no-empty-interface": "off",
+   "@typescript-eslint/no-empty-object-type": "off",
+   "@typescript-eslint/no-inferrable-types": "off",
+   "@typescript-eslint/no-non-null-assertion": "off",
+   "@typescript-eslint/switch-exhaustiveness-check": "off",
+   "@typescript-eslint/no-unnecessary-type-assertion": "off", // off because it does not work correctly
+   "@typescript-eslint/no-unsafe-argument": "off",
+   "@typescript-eslint/no-unsafe-assignment": "off",
+   "@typescript-eslint/no-unsafe-call": "off",
+   "@typescript-eslint/no-unsafe-function-type": "off",
+   "@typescript-eslint/no-unsafe-member-access": "off",
+   "@typescript-eslint/no-unsafe-return": "off",
+   "@typescript-eslint/no-wrapper-object-types": "off",
+   "@typescript-eslint/restrict-plus-operands": "off",
+   "@typescript-eslint/restrict-template-expressions": "off",
+
+   // Check-file plugin rules:
+   "check-file/filename-naming-convention": ["error", {"**/*.ts": "[A-Z]*"}],
+   };
+
+module.exports = tseslint.config({
+   files: ["src/**/*.ts", "test/**/*.ts"],
+   plugins: {
+      "check-file": checkFile,
+      "@stylistic": stylistic },
+   languageOptions: {
+      parserOptions: {
+         projectService: true,
+         warnOnUnsupportedTypeScriptVersion: false },
+      globals: {
+        ...globals.node }},
+   extends: [
+      eslint.configs.recommended,
+      ...tseslint.configs.strict,
+      ...tseslint.configs.stylistic,
+      ],
+   rules });

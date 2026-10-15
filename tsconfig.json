@@ -1,0 +1,27 @@
+{
+   "compilerOptions": {
+      "allowUnreachableCode": false,
+      "alwaysStrict": true,
+      "declaration": true,
+      "forceConsistentCasingInFileNames": true,
+      "lib": ["ES2024", "ESNext.Disposable"],
+      "module": "node18",
+      "noFallthroughCasesInSwitch": true,
+      "noImplicitAny": true,
+      "noImplicitOverride": true,
+      "noImplicitReturns": true,
+      "noImplicitThis": true,
+      "noUnusedLocals": true,
+      "noUnusedParameters": true,
+      "outDir": "dist",
+      "removeComments": true,
+      "rewriteRelativeImportExtensions": true,
+      "rootDir": "src",
+      "strictFunctionTypes": true,
+      "strictNullChecks": true,
+      "strictPropertyInitialization": false,
+      "target": "esnext",
+      "types": ["node"]
+   },
+   "include": ["src"]
+}

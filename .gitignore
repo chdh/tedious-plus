@@ -1,0 +1,12 @@
+$$BackupControl.txt
+*.bat
+/apiDoc/
+/CLAUDE.local.md
+/dist/
+/node_modules/
+/notes.txt
+/old/
+/package-lock.json
+/tempBuild*/
+/todo.txt
+/wiki/

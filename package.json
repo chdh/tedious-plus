@@ -1,0 +1,54 @@
+{
+   "name": "tedious-plus",
+   "version": "0.1.0",
+   "description": "Promises, AsyncIterator and conveniences for Tedious.",
+   "keywords": [
+      "tedious",
+      "mssql",
+      "sqlserver",
+      "sql-server",
+      "database",
+      "promises",
+      "async-iterator"
+   ],
+   "license": "MIT",
+   "homepage": "https://github.com/chdh/tedious-plus",
+   "repository": {
+      "type": "git",
+      "url": "git+https://github.com/chdh/tedious-plus.git"
+   },
+   "contributors": [
+      {
+         "name": "Christian d'Heureuse",
+         "email": "chdh@inventec.ch",
+         "url": "https://www.source-code.biz"
+      }
+   ],
+   "type": "module",
+   "engines": {
+      "node": ">=22"
+   },
+   "main": "./dist/Index.js",
+   "types": "./dist/Index.d.ts",
+   "exports": {
+      ".": {
+         "types": "./dist/Index.d.ts",
+         "default": "./dist/Index.js"
+      },
+      "./*": {
+         "types": "./dist/*.d.ts",
+         "default": "./dist/*.js"
+      }
+   },
+   "sideEffects": false,
+   "files": [
+      "dist/"
+   ],
+   "peerDependencies": {
+      "tedious": "^20.3.3"
+   },
+   "devDependencies": {
+      "@types/node": "^22.0.0",
+      "tedious": "^20.3.3"
+   }
+}
