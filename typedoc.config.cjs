@@ -27,6 +27,8 @@ switch (outputFormat) {
 
          // TypeDoc options:
          readme: "none",
+         entryPointStrategy: "expand",
+         entryPoints: ["src"],
          excludeExternals: true,
          excludeInternal: true,
          hideGenerator: true,
@@ -41,12 +43,14 @@ switch (outputFormat) {
    case "html": {
       module.exports = {
          plugin: ["typedoc-plugin-rename-defaults"],
+         entryPointStrategy: "expand",
+         entryPoints: ["src"],
          excludeExternals: true,
          excludeInternal: true,
          hideGenerator: true,
          router: "structure",
          out: "apiDoc",
-         customCss: "./typeDoc.css",
+//       customCss: "./typeDoc.css",
       // readme: "none",
          };
       break; }}

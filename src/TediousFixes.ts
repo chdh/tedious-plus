@@ -5,16 +5,25 @@
 */
 
 import * as Tedious from "tedious";
+import {createBareObject} from "./Utils.ts";
 
 // Temporary solution for as long as the Tedious package does not export these
 // types in an ordinary manner:
 import {type Column as Tedious_Column} from "tedious/lib/token/row-token-parser.js";
 import {type ColumnMetadata as Tedious_ColumnMetadata} from "tedious/lib/token/colmetadata-token-parser.js";
-type Tedious_RowData = Tedious_Column[] | Record<string, Tedious_Column>;
-   // type variant depending on config.options.useColumnNames
-type Tedious_ColumnMetadataDef = Tedious_ColumnMetadata[] | Record<string, Tedious_ColumnMetadata>;
-   // type variant depending on config.options.useColumnNames
-export {Tedious_Column, Tedious_ColumnMetadata, Tedious_RowData, Tedious_ColumnMetadataDef};
+export type {Tedious_Column, Tedious_ColumnMetadata};
+export type Tedious_ArrayRow = Tedious_Column[];
+export type Tedious_ObjectRow = Record<string, Tedious_Column>;
+export type Tedious_ComboRow = Tedious_ArrayRow & Tedious_ObjectRow;
+   // The actual Type at runtime depends on config.options.useColumnNames.
+export type Tedious_ArrayRowMetadata = Tedious_ColumnMetadata[];
+export type Tedious_ObjectRowMetadata = Record<string, Tedious_ColumnMetadata>;
+export type Tedious_ComboRowMetadata = Tedious_ArrayRowMetadata & Tedious_ObjectRowMetadata;
+   // The actual Type at runtime depends on config.options.useColumnNames.
+/**
+* The type of a Tedious data type object, e.g. `Tedious.TYPES.Int`.
+*/
+export type Tedious_DataType = typeof Tedious.TYPES.Bit;
 
 // The current Tedious implementation does not pass the `error` and `rowCount` values to the `requestCompleted` event.
 // In some cases (e.g. EINVALIDSTATE, ECLOSE, socket errors) the error is only passed to the completion callback
@@ -58,3 +67,19 @@ export function checkConnectionOptions (connection: Tedious.Connection | undefin
    if (options.rowCollectionOnRequestCompletion) {
       return "The Tedious connection option rowCollectionOnRequestCompletion is not compatible with this package."; }
    return undefined; }
+
+// This is a copy of the function `toColumnsMap()` in Tedious/src/token/row-token-parser.ts.
+// It converts a `Tedious_ArrayRow` into a `Tedious_ObjectRow`.
+export function convertTediousArrayRowToTediousObjectRow (arrayRow: Tedious_ArrayRow) : Tedious_ObjectRow {
+   const columnsMap: Tedious_ObjectRow = createBareObject();
+   for (const column of arrayRow) {
+      columnsMap[column.metadata.colName] ??= column; }
+   return columnsMap; }
+
+// This is a copy of a code sequence in Tedious/src/token/handler.ts in function `onColMetadata()`.
+// It converts a `Tedious_ArrayRowMetadata` into a `Tedious_ObjectRowMetadata`.
+export function convertArrayRowMetadataToObjectRowMetadata (arrayRowMetadata: Tedious_ArrayRowMetadata) : Tedious_ObjectRowMetadata {
+   const obj: Tedious_ObjectRowMetadata = createBareObject();
+   for (const col of arrayRowMetadata) {
+      obj[col.colName] ??= col; }
+   return obj; }

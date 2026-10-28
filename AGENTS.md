@@ -18,6 +18,13 @@ It will provide:
 
 - Prefer creating general purpose functions where appropriate instead of scrambling multiple
   functionalities into a single statement or a single function.
+- Some functions that return a `Promise` are declared `async` even when they don't contain an `await`.
+  This has the purpose that exceptions occurring synchronously within the function are wrapped
+  into the returned promise and are not delivered synchronously.
+- The `examples` directory must remain stand-alone. Users download it separately (see `examples/README.md`)
+  and use the published `tedious-plus` package. Nothing in it may reference the rest of the project
+  (no `paths` mappings to `../src`, no shared tsconfig, etc.), and the project's build and lint
+  configuration must not reference it either.
 
 ## Code style
 
@@ -51,6 +58,13 @@ The following known and accepted issues should not be reported in code reviews:
 
 - ConnectionPromises.ts: `checkConnectionOptions()` is only called in `connect()` and not in the other
   functions.
+- AsyncRowIterator.ts: The constructor accepts an explicit type argument without a matching `rowType` option
+  (e.g. `new AsyncRowIterator<"ArrayRow">(request)`), which gives a wrong row type at runtime. A fix with a
+  conditional rest parameter type was rejected as too complicated for the API. Only report it again if a
+  newer TypeScript version allows a simple solution (e.g. constructor overloads with their own type parameters).
+- ConnectionPromises.ts / AsyncRowIterator.ts: `RequestMonitor` and `RowIteratorController` contain similar
+  code (event listeners, metadata and row handlers, request completion). Refactoring this duplication is
+  deferred for now.
 - README.md: The module table between the `API-MODULES:START` and `API-MODULES:END` markers is generated
   from the wiki pages by `node build.js updateWiki`. Don't edit it manually.
 - Ignore the `wiki` and `apiDoc` directories.

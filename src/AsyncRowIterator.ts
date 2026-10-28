@@ -7,14 +7,14 @@
 import * as Tedious from "tedious";
 import {assert, waitWithTimeout} from "./Utils.ts";
 import * as TediousFixes from "./TediousFixes.ts";
-import {Tedious_RowData, Tedious_ColumnMetadataDef} from "./TediousFixes.ts";
+import type {Tedious_ComboRow, Tedious_ComboRowMetadata} from "./TediousFixes.ts";
 import * as TediousUtils from "./TediousUtils.ts";
-import {RowValues, RowMetadata} from "./TediousUtils.ts";
+import type {Row, RowType, RowMetadata, ObjectRowMetadata} from "./TediousUtils.ts";
 
 /**
 * Options for the {@link AsyncRowIterator} constructor.
 */
-export interface AsyncRowIteratorOptions {
+export interface AsyncRowIteratorOptions<RT extends RowType = RowType> {
 
    /**
    * The target size for the internal row buffer FIFO.
@@ -25,7 +25,14 @@ export interface AsyncRowIteratorOptions {
    *
    * @defaultValue 1024
    */
-   fifoSize:                           number; }
+   fifoSize?:                          number;
+
+   /**
+   * The format of the rows delivered by the iterator.
+   *
+   * @defaultValue "ObjectRow"
+   */
+   rowType?:                           RT; }
 
 /**
 * An async iterator for the result rows of a Tedious `Request`.
@@ -49,7 +56,8 @@ export interface AsyncRowIteratorOptions {
 *
 * Behavior:
 *
-* - Each row is delivered as an array of column values (see {@link RowValues}).
+* - By default, each row is delivered as an object (`ObjectRow`). Other row formats can be
+*   selected with the option {@link AsyncRowIteratorOptions.rowType}.
 * - Only the first result set of the request is processed. Additional result sets are ignored.
 * - The rows received from the server are buffered in an internal FIFO. When the FIFO is full, the
 *   request is paused until enough rows have been consumed (see {@link AsyncRowIteratorOptions.fifoSize}).
@@ -65,11 +73,12 @@ export interface AsyncRowIteratorOptions {
 * The connection options `useColumnNames`, `rowCollectionOnDone` and `rowCollectionOnRequestCompletion`
 * must not be set. Otherwise the iteration fails with an error.
 */
-export class AsyncRowIterator {
+export class AsyncRowIterator<RT extends RowType = "ObjectRow"> implements AsyncDisposable {
 
-   private options:                    AsyncRowIteratorOptions;
-   private controller:                 RowIteratorController;
-   private iteratorObject:             RowIteratorObject;
+   private options:                    Required<AsyncRowIteratorOptions<RT>>;
+   private controller:                 RowIteratorController<RT>;
+   private iteratorObject:             RowIteratorObject<RT>;
+   private _objectRowMetadata:         ObjectRowMetadata | undefined;
 
    /**
    * Creates a row iterator for a Tedious request.
@@ -77,12 +86,15 @@ export class AsyncRowIterator {
    * @param request
    *    The Tedious request whose result rows are to be iterated.
    * @param options
-   *    Optional settings for the iterator.
+   *    Optional settings for the iterator, e.g. the row type.
    */
-   public constructor (request: Tedious.Request, options?: Partial<AsyncRowIteratorOptions>) {
-      this.options = {fifoSize: options?.fifoSize ?? 1024};
-      this.controller = new RowIteratorController(request, this.options);
-      this.iteratorObject = new RowIteratorObject(this.controller); }
+   public constructor (request: Tedious.Request, options?: AsyncRowIteratorOptions<RT>) {
+      this.options = {
+         fifoSize:                     options?.fifoSize ?? 1024,
+         rowType:                      options?.rowType ?? "ObjectRow" as RT };
+            // The assertion is only correct if RT has not been specified explicitly without passing rowType.
+      this.controller = new RowIteratorController<RT>(request, this.options);
+      this.iteratorObject = new RowIteratorObject<RT>(this.controller); }
 
    /**
    * Returns the number of rows that have been delivered by the iterator so far.
@@ -98,7 +110,7 @@ export class AsyncRowIterator {
       return this.controller.fifo.length; }
 
    /**
-   * Returns the column metadata of the first result set.
+   * Returns the row metadata of the first result set.
    *
    * The metadata is guaranteed to be available when the first row is delivered.
    *
@@ -111,7 +123,17 @@ export class AsyncRowIterator {
       return metadata; }
 
    /**
-   * Returns a promise for the column metadata of the first result set.
+   * Returns the row metadata of the first result set as an object with one property per column.
+   *
+   * @throws Error
+   *    If the metadata has not yet been received.
+   */
+   public get objectRowMetadata() : ObjectRowMetadata {
+      this._objectRowMetadata ??= TediousFixes.convertArrayRowMetadataToObjectRowMetadata(this.metadata);
+      return this._objectRowMetadata; }
+
+   /**
+   * Returns a promise for the row metadata of the first result set.
    *
    * The returned promise is resolved as soon as the metadata has been received, which is before
    * the first row is delivered. It is rejected if the request completes without producing a
@@ -126,7 +148,7 @@ export class AsyncRowIterator {
    *
    * The same iterator object is returned on each call.
    */
-   public [Symbol.asyncIterator]() : AsyncIterator<RowValues> {
+   public [Symbol.asyncIterator]() : AsyncIterator<Row<RT>> {
       return this.iteratorObject; }
 
    /**
@@ -136,10 +158,6 @@ export class AsyncRowIterator {
    * If the request is still active, it is canceled. The returned promise is resolved when the request
    * has completed, so that the connection can be used for the next request immediately afterwards.
    * This has the same effect as exiting a `for await` loop early.
-   *
-   * A request that has not yet been executed is left untouched.
-   * If a canceled request does not complete within a safety timeout, the returned promise is resolved
-   * anyway. The connection then remains in a non-ready state and the next request on it fails.
    *
    * Usage:
    * ```js
@@ -154,23 +172,23 @@ export class AsyncRowIterator {
 //--- Iterator object ----------------------------------------------------------
 
 // Internal class for the iterator object which is passed to the API client.
-class RowIteratorObject implements AsyncIterator<RowValues> {
+class RowIteratorObject<RT extends RowType> implements AsyncIterator<Row<RT>> {
 
-   private controller:                 RowIteratorController;
+   private controller:                 RowIteratorController<RT>;
 
-   public constructor (controller: RowIteratorController) {
+   public constructor (controller: RowIteratorController<RT>) {
       this.controller = controller; }
 
-   public next() : Promise<IteratorResult<RowValues>> {
-      const promise: PromiseWithResolvers<IteratorResult<RowValues>> = Promise.withResolvers();
+   public next() : Promise<IteratorResult<Row<RT>>> {
+      const promise: PromiseWithResolvers<IteratorResult<Row<RT>>> = Promise.withResolvers();
       this.controller.pushIteratorPromise(promise);
       return promise.promise; }
 
-   public async return (value?: any) : Promise<IteratorResult<RowValues>> {
+   public async return (value?: any) : Promise<IteratorResult<Row<RT>>> {
       await this.controller.terminate();
       return {value, done: true}; }
 
-   public async throw (exception?: any) : Promise<IteratorResult<RowValues>> {
+   public async throw (exception?: any) : Promise<IteratorResult<Row<RT>>> {
       await this.controller.terminate();
       if (exception) {
          throw exception; }
@@ -183,9 +201,10 @@ const minCancelTimeout                 = 5000;                                 /
 const terminationTimeoutMargin         = 5000;                                 // added to the cancel timeout for the termination timeout
 
 // Internal class for the state controller logic of the row iterator.
-class RowIteratorController {
+class RowIteratorController<RT extends RowType> {
 
    private request:                    Tedious.Request;
+   private rowType:                    RT;
    private requestCompleted:           boolean;
    private requestPaused:              boolean;
    private error:                      Error | undefined;
@@ -194,18 +213,20 @@ class RowIteratorController {
    private resultSetNo:                number;
    public  metadata:                   RowMetadata | undefined;
    public  rowCount:                   number;
-   public  fifo:                       RowValues[];
+   public  fifo:                       Row<RT>[];
    private fifoPauseLevel:             number;
    private fifoResumeLevel:            number;
 
-   private iteratorPromises:           PromiseWithResolvers<IteratorResult<RowValues>>[];  // FIFO of pending iterator promises
+   private iteratorPromises:           PromiseWithResolvers<IteratorResult<Row<RT>>>[];  // FIFO of pending iterator promises
    private metadataPromise:            PromiseWithResolvers<RowMetadata>;
    private completedPromise:           PromiseWithResolvers<void>;
 
    //--- Constructor / terminator ----------------------------------------------
 
-   public constructor (request: Tedious.Request, options: AsyncRowIteratorOptions) {
+   public constructor (request: Tedious.Request, options: Required<AsyncRowIteratorOptions<RT>>) {
       this.request = request;
+      this.rowType = options.rowType;
+
       this.requestCompleted = false;
       this.requestPaused = false;
       this.terminating = false;
@@ -213,7 +234,7 @@ class RowIteratorController {
       this.resultSetNo = 0;
       this.rowCount = 0;
       this.fifo = [];
-      assert(options.fifoSize >= 2);
+      assert(options.fifoSize >= 2, "The fifoSize option must be at least 2.");
       this.fifoPauseLevel = options.fifoSize;
       this.fifoResumeLevel = Math.floor(options.fifoSize / 2);
 
@@ -243,6 +264,14 @@ class RowIteratorController {
          this.requestPaused = false; }
       this.request.cancel(); }
 
+   // Records an internal error and cancels the request, so that the remaining rows are not transferred.
+   // The error is delivered to the API client when the canceled request has completed.
+   private abortWithError (msg: string) {
+      if (this.error) {
+         return; }
+      this.error = new Error(msg);
+      this.cancelRequest(); }
+
    // Returns the maximum time to wait for the completion of a canceled request.
    // Normally Tedious completes a canceled request within `cancelTimeout`, by closing the connection if necessary.
    // The additional margin is a safety measure to guarantee that the termination never hangs, even when
@@ -256,7 +285,7 @@ class RowIteratorController {
    public getMetadata() : Promise<RowMetadata> {
       return this.metadataPromise.promise; }
 
-   public pushIteratorPromise (promise: PromiseWithResolvers<IteratorResult<RowValues>>) {
+   public pushIteratorPromise (promise: PromiseWithResolvers<IteratorResult<Row<RT>>>) {
       this.iteratorPromises.push(promise);
       this.serveIteratorPromises(); }
 
@@ -337,33 +366,33 @@ class RowIteratorController {
       this.request.removeListener("row", this.rowEventHandler);
       this.request.removeListener("columnMetadata", this.columnMetadataEventHandler); }
 
-   private columnMetadataEventHandler = (columnMetadataDef: Tedious_ColumnMetadataDef) => {
+   private columnMetadataEventHandler = (metadata: Tedious_ComboRowMetadata) => {
       this.resultSetNo++;
       if (this.resultSetNo > 1 || this.error) {
          return; }                                                             // ignore extra result sets and metadata after an error
       const optionsErrorMsg = TediousFixes.checkConnectionOptions(this.request.connection);
          // This check has to be done here because in the constructor the variable `request.connection` has not yet been set.
       if (optionsErrorMsg) {
-         this.error ??= new Error(optionsErrorMsg);
+         this.abortWithError(optionsErrorMsg);
          return; }
-      if (!Array.isArray(columnMetadataDef)) {
-         this.error ??= new Error("Unsupported metadata format, probably because config.options.useColumnNames is set.");
+      if (!Array.isArray(metadata)) {
+         this.abortWithError("Unsupported metadata format, probably because config.options.useColumnNames is set.");
          return; }
-      this.metadata = columnMetadataDef;
-      this.metadataPromise.resolve(columnMetadataDef); };
+      this.metadata = metadata;
+      this.metadataPromise.resolve(metadata); };
 
-   private rowEventHandler = (rowData: Tedious_RowData) => {
+   private rowEventHandler = (tediousRow: Tedious_ComboRow) => {
       if (this.requestCompleted || this.error || this.terminating) {
          return; }
       if (this.resultSetNo > 1) {
          return; }                                                             // ignore extra result sets
       if (this.resultSetNo == 0 || !this.metadata) {
-         this.error ??= new Error('No "columnMetadata" event received before "row" event.');
+         this.abortWithError('No "columnMetadata" event received before "row" event.');
          return; }
-      if (!Array.isArray(rowData)) {
-         this.error ??= new Error("Unsupported row data format, probably because config.options.useColumnNames is set.");
+      if (!Array.isArray(tediousRow)) {
+         this.abortWithError("Unsupported row data format, probably because config.options.useColumnNames is set.");
          return; }
-      const row = TediousUtils.extractRowColumnValues(rowData);
+      const row = TediousUtils.convertTediousArrayRow<RT>(tediousRow, this.rowType);
       this.fifo.push(row);
       if (this.fifo.length >= this.fifoPauseLevel && !this.requestPaused) {
          this.request.pause();

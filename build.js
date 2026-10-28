@@ -1,5 +1,3 @@
-"use strict";
-
 import * as ChildProcess from "node:child_process";
 import * as Fs from "node:fs";
 
@@ -17,7 +15,7 @@ function replaceFileContent (fileName, startMarker, endMarker, newContent) {
    const regionRegEx = new RegExp(`${startMarker}[\\s\\S]*?${endMarker}`);
    if (!regionRegEx.test(text1)) {
       throw new Error(`Markers not found in ${fileName}.`); }
-   const text2 = text1.replace(regionRegEx, `${startMarker}\n\n${newContent}\n\n${endMarker}`);
+   const text2 = text1.replace(regionRegEx, () => `${startMarker}\n\n${newContent}\n\n${endMarker}`);
    Fs.writeFileSync(fileName, text2); }
 
 function updateModuleTableInReadme() {
@@ -28,7 +26,7 @@ function updateModuleTableInReadme() {
 
 //------------------------------------------------------------------------------
 
-class BuildError extends Error {};
+class BuildError extends Error {}
 
 // Executes a shell command line.
 // An error is thrown when the exit code of the command is not 0.
@@ -46,7 +44,7 @@ function main2() {
    const argv = process.argv;
    if (argv.length > 3) {
       throw new BuildError("Extra command line parameters."); }
-   let cmd = (argv.length > 2) ? argv[2] : "build";
+   const cmd =(argv.length > 2) ? argv[2] : "build";
    switch (cmd) {
       case "clean": {
          delDir("dist");

@@ -1,16 +1,16 @@
-import test from "node:test";
+import {suite, test, before, after} from "node:test";
+import * as NodeAssert from "node:assert";
 import * as Tedious from "tedious";
-import * as ConnectionPromises from "../src/ConnectionPromises.ts";
-import {assert} from "../src/Utils.ts";
+import {ConnectionPromises, type ArrayRow, type ObjectRow} from "../src/Index.ts";
+import {assert, toBareObject} from "../src/Utils.ts";
 import {dummyCallback} from "../src/TediousFixes.ts";
 import {connectionConfig} from "./Config.ts";
+import {assertType, type TypeEqual} from "./TestUtils.ts";
 import "./ExitWatchdog.ts";
 
 // Tests the basic functionality of the ConnectionPromises module.
 async function testBasic (connection: Tedious.Connection) {
-   console.log("ConnectionPromises basic test started.");
-
-   const tempTableName = "tempTediousPlusTest1";
+   const tempTableName = "#tempTediousPlusTestConnPromises";
 
    // Test execSqlBatch().
    {  const sql = `
@@ -24,12 +24,15 @@ async function testBasic (connection: Tedious.Connection) {
    {  const sql = `select * from ${tempTableName} order by i`;
       const request = new Tedious.Request(sql, dummyCallback);
       const result = await ConnectionPromises.execSql(connection, request);
+      assertType<TypeEqual<typeof result.rows, ObjectRow[]>>();
       assert(result.rowCount == 3);
       assert(result.metadata.length == 2);
-      assert(result.rows.length == 3);
-      assert(result.rows[0].length == 2);
-      assert(result.rows[1][0] == 2);
-      assert(result.rows[1][1] == 'two'); }
+      const expectedRows = [
+         {i: 1, s: "one"},
+         {i: 2, s: "two"},
+         {i: 3, s: "three"} ];
+      const expectedRowsBare = expectedRows.map(toBareObject);
+      NodeAssert.deepStrictEqual(result.rows, expectedRowsBare); }
 
    // Test execSqlIterator().
    {  const sql = `select * from ${tempTableName} order by i`;
@@ -38,11 +41,17 @@ async function testBasic (connection: Tedious.Connection) {
       let rowCount = 0;
       for await (const row of iterator) {
          rowCount++;
-         assert(row.length == 2);
-         assert(row[0] == rowCount);
-         assert(row[1] == ["one", "two", "three"][rowCount - 1]);
+         assertType<TypeEqual<typeof row, ObjectRow>>();
+         const expectedRow = {i: rowCount, s: ["one", "two", "three"][rowCount - 1]};
+         NodeAssert.deepStrictEqual(row, toBareObject(expectedRow));
          assert(iterator.metadata.length == 2); }
       assert(rowCount == 3); }
+
+   // Verify that execSqlIterator() returns the correct row type at compile-time.
+   {  const request = new Tedious.Request("select 1", dummyCallback);
+      const iterator = ConnectionPromises.execSqlIterator(connection, request, {rowType: "ArrayRow"});
+      for await (const _row of iterator) {
+         assertType<TypeEqual<typeof _row, ArrayRow>>(); }}
 
    // Test rowCount for non-query SQL with execSql().
    {  const sql = `delete from ${tempTableName}`;
@@ -53,20 +62,10 @@ async function testBasic (connection: Tedious.Connection) {
    // Clean up.
    {  const sql = `drop table ${tempTableName}`;
       const request = new Tedious.Request(sql, dummyCallback);
-      await ConnectionPromises.execSql(connection, request); }
+      await ConnectionPromises.execSql(connection, request); }}
 
-   console.log("ConnectionPromises basic test completed."); }
-
-async function main() {
-   console.log("ConnectionPromises tests started.");
-
+suite("ConnectionPromises", () => {
    const connection = new Tedious.Connection(connectionConfig);
-   try {
-      await ConnectionPromises.connect(connection);
-      await testBasic(connection); }
-    finally {
-      await ConnectionPromises.close(connection); }
-
-   console.log("ConnectionPromises tests completed."); }
-
-test("ConnectionPromises test", main);
+   before(() => ConnectionPromises.connect(connection));
+   after(() => ConnectionPromises.close(connection));
+   test("basic functionality", () => testBasic(connection)); });

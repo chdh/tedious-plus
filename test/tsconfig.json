@@ -1,9 +1,10 @@
 {
    "extends": "../tsconfig.json",
    "compilerOptions": {
-      "rootDir": "..",
-      "outDir": "../tempBuildTest",
       "declaration": false,
+      "declarationMap": false,
+      "outDir": "../tempBuildTest",
+      "rootDir": "..",
       "sourceMap": true
    },
    "include": ["."]

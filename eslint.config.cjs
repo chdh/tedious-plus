@@ -22,10 +22,14 @@ const namingOptions = [
   {
       selector: "typeLike",
       format: null,
-      custom: {regex: "^[A-Z].*", match: true} },          // allow "_"
+      custom: {regex: "^_?[A-Z]", match: true} },
    {
       selector: "import",
       format: ["camelCase", "PascalCase"] },
+   {
+      selector: "objectLiteralProperty",
+      filter: { regex: "^__proto__$", match: true },
+      format: null },
    ];
 
 const rules = {
@@ -64,13 +68,20 @@ const rules = {
    "@stylistic/member-delimiter-style": "error",
    "@typescript-eslint/naming-convention": namingOptions,
    "@typescript-eslint/no-base-to-string": "error",
+   "@typescript-eslint/no-floating-promises": ["error", {
+      allowForKnownSafeCalls: [
+         {from: "package", package: "node:test", name: ["test", "suite", "describe", "it"]} ]}],
+   "@typescript-eslint/no-misused-promises": "error",
    "@typescript-eslint/no-invalid-this": "error",                                    "no-invalid-this": "off",
    "@typescript-eslint/no-loop-func": "error",                                       "no-loop-func": "off",
    "@typescript-eslint/no-loss-of-precision": "error",                               "no-loss-of-precision": "off",
    "@typescript-eslint/no-redeclare": "error",                                       "no-redeclare": "off",
    "@typescript-eslint/no-shadow": "error",                                          "no-shadow": "off",
    "@typescript-eslint/no-unused-expressions": "error",                              "no-unused-expressions": "off",
-   "@typescript-eslint/no-unused-vars": ["error", {argsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_"}],      "no-unused-vars": "off",
+   "@typescript-eslint/no-unused-vars": ["error", {
+      argsIgnorePattern: "^_",
+      varsIgnorePattern: "^_",
+      caughtErrorsIgnorePattern: "^_" }],                                            "no-unused-vars": "off",
    "@typescript-eslint/no-use-before-define": ["error", {functions: false, classes: false}], "no-use-before-define": "off",
    "@typescript-eslint/only-throw-error": "error",
    "@typescript-eslint/prefer-includes": "warn",
@@ -116,6 +127,8 @@ module.exports = tseslint.config({
          warnOnUnsupportedTypeScriptVersion: false },
       globals: {
         ...globals.node }},
+   linterOptions: {
+      reportUnusedDisableDirectives: "off" },
    extends: [
       eslint.configs.recommended,
       ...tseslint.configs.strict,

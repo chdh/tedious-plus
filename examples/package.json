@@ -1,0 +1,11 @@
+{
+   "private": true,
+   "type": "module",
+   "engines": {
+      "node": ">=24"
+   },
+   "dependencies": {
+      "tedious": "^20.3.3",
+      "tedious-plus": ">=0.2.0"
+   }
+}

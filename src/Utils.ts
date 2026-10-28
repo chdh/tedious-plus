@@ -1,5 +1,5 @@
 /**
-* Utility functions for this package.
+* Internal utilities for this package.
 *
 * @internal @module
 */
@@ -51,3 +51,33 @@ export function waitWithTimeout (promise: Promise<unknown>, ms: number) : Promis
    function settledHandler() {
       clearTimeout(timer);
       result.resolve(true); }}
+
+/**
+* Returns the name of the data type of a value, for use in error messages.
+*
+* For objects, the name of the constructor is returned (e.g. "Date"), or "object" if there is none.
+* For other values, the result of `typeof` is returned.
+*/
+export function getTypeName (value: unknown) : string {
+   if (value === null) {
+      return "null"; }
+   if (typeof value == "object") {
+      return value.constructor?.name ?? "object"; }
+   return typeof value; }
+
+const nodeInspectSymbol = Symbol.for("nodejs.util.inspect.custom");
+const nodeInspectPropForBareObj = {
+   value (this: object) {
+      return { ...this }; },
+   enumerable: false };
+
+export function createBareObject<T extends object = Record<string, unknown>> () : T {
+   const obj = Object.create(null);
+   Object.defineProperty(obj, nodeInspectSymbol, nodeInspectPropForBareObj);
+      // This suppresses the "[Object: null prototype]" output e.g. with `console.log()`.
+   return obj; }
+
+export function toBareObject<T extends object> (obj: T) : T {
+   const obj2 = createBareObject<T>();
+   Object.assign(obj2, obj);
+   return obj2; }

@@ -6,21 +6,19 @@
 
 import * as Tedious from "tedious";
 import * as TediousFixes from "./TediousFixes.ts";
-import {Tedious_RowData, Tedious_ColumnMetadataDef} from "./TediousFixes.ts";
-import {AsyncRowIterator, AsyncRowIteratorOptions} from "./AsyncRowIterator.ts";
+import type {Tedious_ComboRow, Tedious_ComboRowMetadata} from "./TediousFixes.ts";
+import {AsyncRowIterator, type AsyncRowIteratorOptions} from "./AsyncRowIterator.ts";
 import * as TediousUtils from "./TediousUtils.ts";
-import {RowValues, RowMetadata} from "./TediousUtils.ts";
-
-// Implementation note:
-// The wrapper functions in this module that return a `Promise` are declared
-// `async` even when they don't use `await`. The reason for this is that
-// exceptions occurring synchronously within a function are wrapped into the
-// returned promise and not delivered synchronously.
+import type {Row, RowType, RowMetadata, RequestResult} from "./TediousUtils.ts";
 
 //--- Connection monitor -------------------------------------------------------
 
-// An internal class that tracks the state of a Tedious connection.
-class ConnectionMonitor {
+/**
+* An internal class that tracks the state of a Tedious connection.
+*
+* @internal
+*/
+export class ConnectionMonitor {
 
    //--- Static ----------------------------------------------------------------
 
@@ -82,41 +80,24 @@ class ConnectionMonitor {
 
 //--- Request monitor ----------------------------------------------------------
 
-/**
-* The result from executing an SQL request.
-*/
-export interface RequestResult {
-
-   /**
-   * The number of rows affected or returned.
-   */
-   rowCount:                           number;
-
-   /**
-   * The rows returned by the query.
-   * Only the first result set is processed. Extra result sets are ignored.
-   */
-   rows:                               RowValues[];
-
-   /**
-   * Column metadata of the result set.
-   */
-   metadata:                           RowMetadata; }
-
 // An internal class that tracks the state of a Tedious request.
-class RequestMonitor {
+class RequestMonitor<RT extends RowType = RowType> {
 
    private request:                    Tedious.Request;
+   private rowType:                    RT;
    private requestCompleted:           boolean;
    private resultSetNo:                number;
    public  metadata:                   RowMetadata;
-   private rows:                       RowValues[];
+   private rows:                       Row<RT>[];
    private rowCount:                   number;                                 // row count returned from SQL server
    private error:                      Error | undefined;
    private completedPromise:           PromiseWithResolvers<void>;
 
-   public constructor (request: Tedious.Request) {
+   public constructor (request: Tedious.Request);
+   public constructor (request: Tedious.Request, rowType: RT);
+   public constructor (request: Tedious.Request, rowType: RowType = "ObjectRow") {
       this.request = request;
+      this.rowType = <RT>rowType;
       this.requestCompleted = false;
       this.resultSetNo = 0;
       this.metadata = [];
@@ -126,11 +107,19 @@ class RequestMonitor {
       this.addEventListeners();
       TediousFixes.interceptRequestCompletion(request, this.requestCompletionHandler); }
 
-   public async getResult() : Promise<RequestResult> {
+   public async getResult() : Promise<RequestResult<RT>> {
       await this.completedPromise.promise;
       if (this.error) {
          throw this.error; }
       return {rowCount: this.rowCount, rows: this.rows, metadata: this.metadata}; }
+
+   // Records an internal error and cancels the request, so that the remaining rows are not transferred.
+   // The error is delivered when the canceled request has completed.
+   private abortWithError (msg: string) {
+      if (this.error) {
+         return; }
+      this.error = new Error(msg);
+      this.request.cancel(); }
 
    //--- Events ----------------------------------------------------------------
 
@@ -142,22 +131,22 @@ class RequestMonitor {
       this.request.removeListener("row", this.rowEventHandler);
       this.request.removeListener("columnMetadata", this.columnMetadataEventHandler); }
 
-   private columnMetadataEventHandler = (columnMetadataDef: Tedious_ColumnMetadataDef) => {
+   private columnMetadataEventHandler = (metadata: Tedious_ComboRowMetadata) => {
       this.resultSetNo++;
       if (this.resultSetNo > 1 || this.error) {
          return; }                                                             // ignore extra result sets and metadata after an error
-      if (!Array.isArray(columnMetadataDef)) {
-         this.error ??= new Error("Unsupported metadata format, probably because config.options.useColumnNames is set.");
+      if (!Array.isArray(metadata)) {
+         this.abortWithError("Unsupported metadata format, probably because config.options.useColumnNames is set.");
          return; }
-      this.metadata = columnMetadataDef; };
+      this.metadata = metadata; };
 
-   private rowEventHandler = (rowData: Tedious_RowData) => {
-      if (this.resultSetNo > 1) {
-         return; }                                                             // ignore extra result sets
-      if (!Array.isArray(rowData)) {
-         this.error ??= new Error("Unsupported row data format, probably because config.options.useColumnNames is set.");
+   private rowEventHandler = (tediousRow: Tedious_ComboRow) => {
+      if (this.resultSetNo > 1 || this.error) {
+         return; }                                                             // ignore extra result sets and rows after an error
+      if (!Array.isArray(tediousRow)) {
+         this.abortWithError("Unsupported row data format, probably because config.options.useColumnNames is set.");
          return; }
-      const row = TediousUtils.extractRowColumnValues(rowData);
+      const row = TediousUtils.convertTediousArrayRow(tediousRow, this.rowType);
       this.rows.push(row); };
 
    //--- Request completion ----------------------------------------------------
@@ -227,7 +216,8 @@ export async function close (connection: Tedious.Connection) : Promise<void> {
 * Executes an SQL query and returns the result.
 *
 * This is a promisified version of `Connection.execSql()`.
-* Output rows are buffered in an array and returned on completion.
+* The rows of the result set are buffered in an array and returned on completion.
+* The optional parameter `rowType` specifies the format of the rows (default: `"ObjectRow"`).
 *
 * Usage:
 * ```js
@@ -243,18 +233,21 @@ export async function close (connection: Tedious.Connection) : Promise<void> {
 * @returns
 *    A promise for the result of the request. The promise is rejected when the request fails.
 */
-export async function execSql (connection: Tedious.Connection, request: Tedious.Request) : Promise<RequestResult> {
+export function execSql (connection: Tedious.Connection, request: Tedious.Request) : Promise<RequestResult<"ObjectRow">>;
+export function execSql<RT extends RowType> (connection: Tedious.Connection, request: Tedious.Request, rowType: RT) : Promise<RequestResult<RT>>;
+export async function execSql (connection: Tedious.Connection, request: Tedious.Request, rowType: RowType = "ObjectRow") : Promise<RequestResult<RowType>> {
    ConnectionMonitor.verifyIsOpen(connection);
-   const requestMonitor = new RequestMonitor(request);
+   const requestMonitor = new RequestMonitor<RowType>(request, rowType);
    connection.execSql(request);
    return requestMonitor.getResult(); }
 
 /**
 * Executes an SQL query and returns an `AsyncRowIterator` to process the result set.
 *
-* This is a promisified version of `Connection.execSql()`.
-* This variant returns an `AsyncIterator` that allows processing the rows as soon
-* as they arrive from the database server.
+* This is an iterator-based variant of `Connection.execSql()`.
+* It returns an `AsyncIterator` that allows processing the rows as soon as they arrive from the
+* database server. The iteration must be completed or terminated before the next request is
+* executed on the connection. See {@link AsyncRowIterator} for details.
 *
 * Usage:
 * ```js
@@ -270,14 +263,16 @@ export async function execSql (connection: Tedious.Connection, request: Tedious.
 * @param request
 *    The Tedious request to be executed.
 * @param options
-*    Optional settings for the iterator.
+*    Optional settings for the iterator, e.g. the row type.
 * @returns
 *    An iterator for the result rows. When the request fails, the error is thrown within the
 *    `for await` loop.
 */
-export function execSqlIterator (connection: Tedious.Connection, request: Tedious.Request, options?: Partial<AsyncRowIteratorOptions>) : AsyncRowIterator {
+export function execSqlIterator (connection: Tedious.Connection, request: Tedious.Request, options?: AsyncRowIteratorOptions<"ObjectRow">) : AsyncRowIterator<"ObjectRow">;
+export function execSqlIterator<RT extends RowType> (connection: Tedious.Connection, request: Tedious.Request, options: AsyncRowIteratorOptions<RT> & {rowType: RT}) : AsyncRowIterator<RT>;
+export function execSqlIterator (connection: Tedious.Connection, request: Tedious.Request, options?: AsyncRowIteratorOptions) : AsyncRowIterator<any> {
    ConnectionMonitor.verifyIsOpen(connection);
-   const iterator = new AsyncRowIterator(request, options);
+   const iterator = new AsyncRowIterator<RowType>(request, options);
    connection.execSql(request);
    return iterator; }
 
@@ -285,7 +280,7 @@ export function execSqlIterator (connection: Tedious.Connection, request: Tediou
 * Executes an SQL batch block.
 *
 * This is the promisified version of `Connection.execSqlBatch()`.
-* It is used to e.g. execute blocks of an SQL script.
+* It can be used e.g. to execute the blocks of an SQL script.
 *
 * The SQL code runs within the scope of the session.
 * Changed settings and local temporary tables (`#tmp`) persist in the session across batches.
