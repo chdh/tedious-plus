@@ -1,6 +1,6 @@
 import {suite, test, before, after} from "node:test";
 import {AsyncIteratorReader, ConnectionPlus} from "../src/Index.ts";
-import {assert} from "../src/Utils.ts";
+import {assert} from "../src/utils/Utils.ts";
 import {connectionConfig} from "./Config.ts";
 import "./ExitWatchdog.ts";
 

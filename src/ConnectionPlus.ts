@@ -5,10 +5,10 @@
 */
 
 import * as Tedious from "tedious";
-import {getTypeName} from "./Utils.ts";
-import {dummyCallback} from "./TediousFixes.ts";
-import * as TediousUtils from "./TediousUtils.ts";
-import {type Row, type RowType, type SqlParamDefVariants, type SqlParamDef, type RequestResult, type JsValue, type JsValueDataType, testJsValueDataType} from "./TediousUtils.ts";
+import {getTypeName} from "./utils/Utils.ts";
+import {dummyCallback} from "./utils/TediousFixes.ts";
+import * as TediousUtils from "./utils/TediousUtils.ts";
+import {type Row, type RowType, type SqlParamDefVariants, type SqlParamDef, type RequestResult, type JsValue, type JsValueDataType, testJsValueDataType} from "./utils/TediousUtils.ts";
 import * as ConnectionPromises from "./ConnectionPromises.ts";
 import {AsyncRowIterator, type AsyncRowIteratorOptions} from "./AsyncRowIterator.ts";
 

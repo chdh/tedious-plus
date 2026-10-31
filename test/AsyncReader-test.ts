@@ -1,6 +1,6 @@
 import {suite, test} from "node:test";
 import * as NodeAssert from "node:assert";
-import {type AsyncReader, AsyncIteratorReader, AsyncReaderIterator} from "../src/AsyncReader.ts";
+import {type AsyncReader, AsyncIteratorReader, AsyncReaderIterator} from "../src/utils/AsyncReader.ts";
 
 //--- Test helpers -------------------------------------------------------------
 

@@ -5,11 +5,11 @@
 */
 
 import * as Tedious from "tedious";
-import * as TediousFixes from "./TediousFixes.ts";
-import type {Tedious_ComboRow, Tedious_ComboRowMetadata} from "./TediousFixes.ts";
+import * as TediousFixes from "./utils/TediousFixes.ts";
+import type {Tedious_ComboRow, Tedious_ComboRowMetadata} from "./utils/TediousFixes.ts";
 import {AsyncRowIterator, type AsyncRowIteratorOptions} from "./AsyncRowIterator.ts";
-import * as TediousUtils from "./TediousUtils.ts";
-import type {Row, RowType, RowMetadata, RequestResult} from "./TediousUtils.ts";
+import * as TediousUtils from "./utils/TediousUtils.ts";
+import type {Row, RowType, RowMetadata, RequestResult} from "./utils/TediousUtils.ts";
 
 //--- Connection monitor -------------------------------------------------------
 

@@ -158,9 +158,7 @@ export class AsyncIteratorReader<T> implements AsyncReader<T>, AsyncDisposable {
 /**
 * An async iterator for the values of an {@link AsyncReader}.
 *
-* The object is both the iterable and the iterator (like an async generator object), so it can be
-* used directly in a `for await` loop. It is single-pass: a second loop continues where the first one
-* stopped.
+* The object can be used in a `for await` loop.
 *
 * Usage:
 * ```js
@@ -182,7 +180,7 @@ export class AsyncIteratorReader<T> implements AsyncReader<T>, AsyncDisposable {
 * - `next()` must not be called again before the promise of the previous call has settled. A
 *   `for await` loop never does that.
 */
-export class AsyncReaderIterator<T> implements AsyncIterator<T, undefined>, AsyncIterable<T>, AsyncDisposable {
+export class AsyncReaderIterator<T> implements AsyncIteratorObject<T> {
 
    private reader:                     AsyncReader<T>;
    private finished:                   boolean = false;

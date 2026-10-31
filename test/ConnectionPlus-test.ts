@@ -2,7 +2,7 @@ import {suite, test, before, after} from "node:test";
 import * as NodeAssert from "node:assert";
 import * as Tedious from "tedious";
 import {ConnectionPlus, type ArrayRow, type ObjectRow} from "../src/Index.ts";
-import {assert, toBareObject} from "../src/Utils.ts";
+import {assert, toBareObject} from "../src/utils/Utils.ts";
 import {connectionConfig} from "./Config.ts";
 import {assertType, type TypeEqual} from "./TestUtils.ts";
 import "./ExitWatchdog.ts";
