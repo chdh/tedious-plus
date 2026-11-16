@@ -1,7 +1,7 @@
 import {suite, test} from "node:test";
 import * as NodeAssert from "node:assert";
-import {type AsyncWriter, BufferedAsyncWriter} from "../src/utils/AsyncWriter.ts";
-import {AsyncPipe} from "../src/utils/AsyncPipe.ts";
+import {type AsyncWriter, BufferedAsyncWriter} from "../src/io/AsyncWriter.ts";
+import {AsyncPipe} from "../src/io/AsyncPipe.ts";
 
 //--- Test helpers -------------------------------------------------------------
 

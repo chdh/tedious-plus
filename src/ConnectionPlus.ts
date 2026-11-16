@@ -9,6 +9,7 @@ import {getTypeName} from "./utils/Utils.ts";
 import {dummyCallback} from "./utils/TediousFixes.ts";
 import * as TediousUtils from "./utils/TediousUtils.ts";
 import {type Row, type RowType, type SqlParamDefVariants, type SqlParamDef, type RequestResult, type JsValue, type JsValueDataType, testJsValueDataType} from "./utils/TediousUtils.ts";
+import * as ExportMain from "./export/ExportMain.ts";
 import * as ConnectionPromises from "./ConnectionPromises.ts";
 import {AsyncRowIterator, type AsyncRowIteratorOptions} from "./AsyncRowIterator.ts";
 
@@ -57,6 +58,11 @@ export interface QueryScalarOptions<DT extends JsValueDataType = JsValueDataType
 * Options for {@link ConnectionPlus.queryIterator}.
 */
 export type QueryIteratorOptions<RT extends RowType = RowType> = QueryOptions<RT> & AsyncRowIteratorOptions<RT>;
+
+/**
+* Options for {@link ConnectionPlus.exportQuery}.
+*/
+export type ExportQueryOptions = CommonRequestOptions & ExportMain.ExportOptions;
 
 /**
 * A wrapper class for the Tedious `Connection` class.
@@ -275,7 +281,41 @@ export class ConnectionPlus implements AsyncDisposable {
    public queryIterator<RT extends RowType> (sql: string, options: QueryIteratorOptions<RT> & {rowType: RT}) : AsyncRowIterator<RT>;
    public queryIterator (sql: string, options?: QueryIteratorOptions<any>) : AsyncRowIterator<any> {
       const {request} = createRequest(sql, options);
-      return ConnectionPromises.execSqlIterator(this.connection, request, options); }}
+      return ConnectionPromises.execSqlIterator(this.connection, request, options); }
+
+   //--- import/export ---------------------------------------------------------
+
+   /**
+   * Executes an SQL query and exports the rows of the result set into a file or into an entry of a ZIP archive.
+   *
+   * The rows are written as they arrive from the server, so large result sets can be exported without
+   * buffering them in memory. The output format is JSON Lines (JSONL), with one line per row
+   * (see {@link ExportMain.ExportFormatTypeJsonlOptions}).
+   *
+   * Usage:
+   * ```js
+   * await conn.exportQuery("select * from t1", {output: {type: "file", path: "t1.jsonl"}});
+   * await conn.exportQuery("select * from t2", {output: {type: "zip", zipPath: "export.zip", entryName: "t2.jsonl", ifExists: "addEntry"}});
+   * ```
+   *
+   * The Tedious connection option `useUTC` must not be set to `false`.
+   *
+   * When the export fails, the state of the output file is undefined. It may be incomplete or invalid.
+   *
+   * @param sql
+   *    The SQL query to be executed.
+   * @param options
+   *    The output file, optional settings for the columns and the format, request options and SQL parameters.
+   * @returns
+   *    A promise for the number of rows exported. The promise is rejected when the query or the export fails.
+   */
+   public async exportQuery (sql: string, options: ExportQueryOptions) : Promise<number> {
+      if (!this.connection.config.options.useUTC) {
+         throw new Error("The Tedious connection option useUTC=false is not supported for data export."); }
+      await using iterator = this.queryIterator(sql, {...options, rowType: "ArrayRow"});
+      const metadata = await iterator.getMetadata();
+      const rowCount = await ExportMain.exportRows(iterator, metadata, options);
+      return rowCount; }}
 
 //--- Helper functions ---------------------------------------------------------
 

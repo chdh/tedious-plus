@@ -2,7 +2,7 @@
 * This module provides an `AsyncReader` interface for procedural reading of a sequence of values,
 * and adapters to convert between async iterables and async readers.
 *
-* @module
+* @internal @module
 */
 
 //--- Interface ----------------------------------------------------------------

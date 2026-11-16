@@ -9,7 +9,7 @@ import {assert, waitWithTimeout} from "./utils/Utils.ts";
 import * as TediousFixes from "./utils/TediousFixes.ts";
 import type {Tedious_ComboRow, Tedious_ComboRowMetadata} from "./utils/TediousFixes.ts";
 import * as TediousUtils from "./utils/TediousUtils.ts";
-import type {Row, RowType, RowMetadata, ObjectRowMetadata} from "./utils/TediousUtils.ts";
+import type {Row, RowType, ArrayRowMetadata, ObjectRowMetadata} from "./utils/TediousUtils.ts";
 
 /**
 * Options for the {@link AsyncRowIterator} constructor.
@@ -73,7 +73,7 @@ export interface AsyncRowIteratorOptions<RT extends RowType = RowType> {
 * The connection options `useColumnNames`, `rowCollectionOnDone` and `rowCollectionOnRequestCompletion`
 * must not be set. Otherwise the iteration fails with an error.
 */
-export class AsyncRowIterator<RT extends RowType = "ObjectRow"> implements AsyncDisposable {
+export class AsyncRowIterator<RT extends RowType = "ObjectRow"> implements AsyncIterable<Row<RT>>, AsyncDisposable {
 
    private options:                    Required<AsyncRowIteratorOptions<RT>>;
    private controller:                 RowIteratorController<RT>;
@@ -117,7 +117,7 @@ export class AsyncRowIterator<RT extends RowType = "ObjectRow"> implements Async
    * @throws Error
    *    If the metadata has not yet been received.
    */
-   public get metadata() : RowMetadata {
+   public get metadata() : ArrayRowMetadata {
       const metadata = this.controller.metadata;
       assert(!!metadata, "Metadata not yet available.");
       return metadata; }
@@ -140,7 +140,7 @@ export class AsyncRowIterator<RT extends RowType = "ObjectRow"> implements Async
    * result set, e.g. because of an error, because the SQL statement does not produce a result
    * set, or because the iteration has been terminated early.
    */
-   public getMetadata() : Promise<RowMetadata> {
+   public getMetadata() : Promise<ArrayRowMetadata> {
       return this.controller.getMetadata(); }
 
    /**
@@ -211,14 +211,14 @@ class RowIteratorController<RT extends RowType> {
    private terminating:                boolean;
 
    private resultSetNo:                number;
-   public  metadata:                   RowMetadata | undefined;
+   public  metadata:                   ArrayRowMetadata | undefined;
    public  rowCount:                   number;
    public  fifo:                       Row<RT>[];
    private fifoPauseLevel:             number;
    private fifoResumeLevel:            number;
 
    private iteratorPromises:           PromiseWithResolvers<IteratorResult<Row<RT>>>[];  // FIFO of pending iterator promises
-   private metadataPromise:            PromiseWithResolvers<RowMetadata>;
+   private metadataPromise:            PromiseWithResolvers<ArrayRowMetadata>;
    private completedPromise:           PromiseWithResolvers<void>;
 
    //--- Constructor / terminator ----------------------------------------------
@@ -282,7 +282,7 @@ class RowIteratorController<RT extends RowType> {
 
    //--- Promise logic ---------------------------------------------------------
 
-   public getMetadata() : Promise<RowMetadata> {
+   public getMetadata() : Promise<ArrayRowMetadata> {
       return this.metadataPromise.promise; }
 
    public pushIteratorPromise (promise: PromiseWithResolvers<IteratorResult<Row<RT>>>) {

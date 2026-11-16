@@ -14,10 +14,18 @@ It will provide:
 - Utility and convenience functions.
 - A connection pool.
 
+The modules in `src/io` are general async I/O utilities, tailored to the needs of this package. They are
+intentionally internal (`@internal`, not exported from `Index.ts`), so that their API can still change or be
+replaced by Node.js Web Streams. Whether they will be moved into a separate package is decided later.
+
 ## Coding principles
 
 - Prefer creating general purpose functions where appropriate instead of scrambling multiple
   functionalities into a single statement or a single function.
+- Split complex expressions into several statements, so that each statement performs only one
+  significant operation (e.g. an `await`, a call with side effects, or a callback). Give
+  intermediate values descriptive names. Prefer `async`/`await` with `try`/`catch` over
+  `.then()`/`.catch()` with callbacks. This makes the source code easier to read.
 - Some functions that return a `Promise` are declared `async` even when they don't contain an `await`.
   This has the purpose that exceptions occurring synchronously within the function are wrapped
   into the returned promise and are not delivered synchronously.
@@ -65,6 +73,11 @@ The following known and accepted issues should not be reported in code reviews:
 - ConnectionPromises.ts / AsyncRowIterator.ts: `RequestMonitor` and `RowIteratorController` contain similar
   code (event listeners, metadata and row handlers, request completion). Refactoring this duplication is
   deferred for now.
+- AsyncZipEntryWriter.ts: After `abort()`, the state of the ZIP archive is undefined, because the experimental
+  ZIP API of Node.js does not document what `ZipFile.addEntry()` leaves behind when the source of a streaming
+  entry fails (in tests, the existing entries remain intact). This is documented and accepted, because a failed
+  export is normally restarted as a whole. Only report it again if the Node.js documentation of
+  `ZipFile.addEntry()` changes in this respect.
 - README.md: The module table between the `API-MODULES:START` and `API-MODULES:END` markers is generated
   from the wiki pages by `node build.js updateWiki`. Don't edit it manually.
 - Ignore the `wiki` and `apiDoc` directories.

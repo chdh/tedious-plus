@@ -1,7 +1,7 @@
 /**
-* Internal utilities for this package.
+* General utilities for this package.
 *
-* @internal @module
+* @module
 */
 
 /**
@@ -71,13 +71,27 @@ const nodeInspectPropForBareObj = {
       return { ...this }; },
    enumerable: false };
 
+/**
+* Creates a bare object with a `null` prototype instead of a normal `Object` prototype.
+*/
 export function createBareObject<T extends object = Record<string, unknown>> () : T {
    const obj = Object.create(null);
    Object.defineProperty(obj, nodeInspectSymbol, nodeInspectPropForBareObj);
       // This suppresses the "[Object: null prototype]" output e.g. with `console.log()`.
    return obj; }
 
+/**
+* Converts a normal object into a bare object.
+*/
 export function toBareObject<T extends object> (obj: T) : T {
    const obj2 = createBareObject<T>();
    Object.assign(obj2, obj);
    return obj2; }
+
+/**
+* Creates an UTC date value which can be used for SQL server.
+*
+* Note that month values are from 1 to 12 here!
+*/
+export function createUtcDate (year: number, month: number, day: number, hour = 0, minute = 0, second = 0) : Date {
+   return new Date(Date.UTC(year, month - 1, day, hour, minute, second)); }

@@ -1,7 +1,7 @@
 {
    "name": "tedious-plus",
-   "version": "0.2.0",
-   "description": "Promises, AsyncIterator and conveniences for Tedious.",
+   "version": "0.3.0",
+   "description": "Promises, AsyncIterator, data export and conveniences for Tedious.",
    "keywords": [
       "tedious",
       "mssql",
@@ -9,7 +9,9 @@
       "sql-server",
       "database",
       "promises",
-      "async-iterator"
+      "async-iterator",
+      "export",
+      "jsonl"
    ],
    "license": "MIT",
    "homepage": "https://github.com/chdh/tedious-plus",
@@ -26,7 +28,7 @@
    ],
    "type": "module",
    "engines": {
-      "node": ">=24"
+      "node": ">=26.8"
    },
    "main": "./dist/Index.js",
    "types": "./dist/Index.d.ts",
@@ -49,7 +51,7 @@
       "tedious": ">=20.3.3"
    },
    "devDependencies": {
-      "@types/node": "^24.0.0",
+      "@types/node": "^26.6.6",
       "tedious": "^20.3.3"
    }
 }

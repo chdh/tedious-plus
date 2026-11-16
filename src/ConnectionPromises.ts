@@ -9,7 +9,7 @@ import * as TediousFixes from "./utils/TediousFixes.ts";
 import type {Tedious_ComboRow, Tedious_ComboRowMetadata} from "./utils/TediousFixes.ts";
 import {AsyncRowIterator, type AsyncRowIteratorOptions} from "./AsyncRowIterator.ts";
 import * as TediousUtils from "./utils/TediousUtils.ts";
-import type {Row, RowType, RowMetadata, RequestResult} from "./utils/TediousUtils.ts";
+import type {Row, RowType, ArrayRowMetadata, RequestResult} from "./utils/TediousUtils.ts";
 
 //--- Connection monitor -------------------------------------------------------
 
@@ -87,7 +87,7 @@ class RequestMonitor<RT extends RowType = RowType> {
    private rowType:                    RT;
    private requestCompleted:           boolean;
    private resultSetNo:                number;
-   public  metadata:                   RowMetadata;
+   public  metadata:                   ArrayRowMetadata;
    private rows:                       Row<RT>[];
    private rowCount:                   number;                                 // row count returned from SQL server
    private error:                      Error | undefined;

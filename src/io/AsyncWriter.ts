@@ -2,10 +2,10 @@
 * This module provides an `AsyncWriter` interface for procedural writing of a sequence of values,
 * and a `BufferedAsyncWriter` for writing bytes and text lines in blocks.
 *
-* @module
+* @internal @module
 */
 
-import {assert} from "./Utils.ts";
+import {assert} from "../utils/Utils.ts";
 
 //--- Interface ----------------------------------------------------------------
 
@@ -109,8 +109,10 @@ const textEncoder = new TextEncoder();
 * - `close()` sends the remaining buffered bytes and closes the underlying writer.
 * - `abort()` discards the buffered bytes and aborts the underlying writer. If the underlying writer does not
 *   support `abort()`, it is closed instead.
+* - `abort()` is called implicitly at the end of the scope of an `await using` declaration.
+*   After `close()`, this has no effect.
 */
-export class BufferedAsyncWriter implements Required<AsyncWriter<Uint8Array>> {
+export class BufferedAsyncWriter implements Required<AsyncWriter<Uint8Array>>, AsyncDisposable {
 
    private writer:                     AsyncWriter<Uint8Array>;
    private blockSize:                  number;
@@ -157,7 +159,7 @@ export class BufferedAsyncWriter implements Required<AsyncWriter<Uint8Array>> {
       return this.runOperation(() => this.encodeLine(text)); }
 
    /**
-   * Writes a value as a JSON line, e.g. for the JSON Lines format.
+   * Writes a value as a JSON line, e.g. for the JSON Lines format (JSONL).
    *
    * @param value
    *    The value to be written. It is converted with `JSON.stringify()`.
@@ -165,8 +167,7 @@ export class BufferedAsyncWriter implements Required<AsyncWriter<Uint8Array>> {
    public writeJsonLine (value: unknown) : Promise<void> {
       return this.runOperation(() => {
          const json: string | undefined = JSON.stringify(value);
-         if (json === undefined) {
-            throw new Error("BufferedAsyncWriter: The value cannot be converted to JSON."); }
+         assert(json !== undefined, "BufferedAsyncWriter: The value cannot be converted to JSON.");
          return this.encodeLine(json); }); }
 
    /**
@@ -205,6 +206,13 @@ export class BufferedAsyncWriter implements Required<AsyncWriter<Uint8Array>> {
          await this.writer.abort(error); }
        else {
          await this.writer.close(); }}
+
+   /**
+   * Aborts the writer, unless it has already been closed.
+   * Called implicitly at the end of the scope of an `await using` declaration.
+   */
+   public [Symbol.asyncDispose]() : Promise<void> {
+      return this.abort(); }
 
    // Runs a write operation. Concurrent operations and operations after close() or abort() are rejected.
    private async runOperation (operation: () => Promise<void>) : Promise<void> {

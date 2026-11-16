@@ -1,8 +1,8 @@
 import {suite, test} from "node:test";
 import * as NodeAssert from "node:assert";
 import * as NodeTimers from "node:timers/promises";
-import {AsyncPipe} from "../src/utils/AsyncPipe.ts";
-import type {AsyncWriter} from "../src/utils/AsyncWriter.ts";
+import {AsyncPipe} from "../src/io/AsyncPipe.ts";
+import type {AsyncWriter} from "../src/io/AsyncWriter.ts";
 import {waitWithTimeout} from "../src/utils/Utils.ts";
 
 //--- Test helpers -------------------------------------------------------------

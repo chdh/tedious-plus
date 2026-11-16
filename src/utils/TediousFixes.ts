@@ -83,3 +83,7 @@ export function convertArrayRowMetadataToObjectRowMetadata (arrayRowMetadata: Te
    for (const col of arrayRowMetadata) {
       obj[col.colName] ??= col; }
    return obj; }
+
+// Returns `true` if a field has the data type `rowversion`.
+export function isRowversion (colMetadata: Tedious_ColumnMetadata) : boolean {
+   return colMetadata.userType == 0x50; }

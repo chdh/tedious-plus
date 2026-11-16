@@ -1,12 +1,12 @@
 /**
 * This module provides an `AsyncPipe`, a buffered connection between an async writer and an async reader.
 *
-* @module
+* @internal @module
 */
 
-import {assert} from "./Utils.ts";
 import type {AsyncWriter} from "./AsyncWriter.ts";
 import {type AsyncReader, AsyncReaderIterator} from "./AsyncReader.ts";
+import {assert} from "../utils/Utils.ts";
 
 /**
 * Options for the {@link AsyncPipe} constructor.
@@ -63,6 +63,7 @@ export interface AsyncPipeOptions {
 * - `writer.abort(error)` discards the buffered values. Reading then fails with `error`.
 * - `reader.close()`, or exiting the `for await` loop early, discards the buffered values. Writing then
 *   fails with a "broken pipe" error, so that the producer can stop.
+* - `abort(error)` discards the buffered values. A pending or subsequent read or write then fails with `error`.
 * - The producer and the consumer must run concurrently, e.g. with `Promise.all()` as above. If one side
 *   stops without closing or aborting its end, the other side waits forever.
 */
@@ -107,6 +108,18 @@ export class AsyncPipe<T> implements Disposable {
       return this._source; }
 
    /**
+   * Aborts the pipe, unless the writer has already been closed or aborted. The buffered values are
+   * discarded. A pending or subsequent read or write then fails with `error`.
+   *
+   * This can be used by the owner of the pipe, e.g. when the consumer has failed and no longer reads.
+   *
+   * @param error
+   *    The error with which reading and writing fail.
+   */
+   public abort (error?: unknown) : void {
+      this.controller.abort(error ?? new Error("AsyncPipe: The pipe has been aborted.")); }
+
+   /**
    * Aborts the pipe, unless the writer has already been closed or aborted. A pending or subsequent
    * read or write then fails with an error. Called implicitly at the end of the scope of a `using`
    * declaration.
@@ -115,7 +128,7 @@ export class AsyncPipe<T> implements Disposable {
    * the pipe is exited, e.g. because of an exception.
    */
    public [Symbol.dispose]() : void {
-      this.controller.abort(new Error("AsyncPipe: The pipe has been disposed.")); }}
+      this.abort(new Error("AsyncPipe: The pipe has been disposed.")); }}
 
 //--- Writer and reader --------------------------------------------------------
 
@@ -127,6 +140,9 @@ class PipeWriter<T> implements Required<AsyncWriter<T>> {
    public constructor (controller: PipeController<T>) {
       this.controller = controller; }
 
+   // Values are passed by reference. A byte array must therefore not be modified by the producer after write().
+   // Future: Once immutable ArrayBuffers are available (TC39 proposal, `ArrayBuffer.prototype.transferToImmutable()`),
+   // consider transferring byte arrays to immutable buffers here, to enforce this without copying them.
    public write (value: T) : Promise<void> {
       return this.controller.write(value); }
 

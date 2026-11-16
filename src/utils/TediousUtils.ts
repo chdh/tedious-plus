@@ -28,7 +28,7 @@ export interface RequestResult<RT extends RowType> {
    /**
    * Row metadata of the result set.
    */
-   metadata:                           RowMetadata; }
+   metadata:                           ArrayRowMetadata; }
 
 //--- Result set rows ----------------------------------------------------------
 
@@ -48,7 +48,7 @@ export type ObjectRow = Record<string, any>;
 *
 * Example: `[123, "abc"]`
 *
-* The values are in the same order as the columns of the result set (see {@link RowMetadata}).
+* The values are in the same order as the columns of the result set (see {@link ArrayRowMetadata}).
 * They are the JavaScript values converted by Tedious, e.g. `number`, `string`, `boolean`, etc.
 *
 * The data type `any` is used for convenience and because the type is given by the SQL query.
@@ -121,7 +121,9 @@ export interface RowTypes extends Record<RowType, unknown> {
 */
 export type Row<RT extends RowType> = RowTypes[RT];
 
-/** @internal */
+/**
+* Converts a `TediousArrayRow` into one of the other row types.
+*/
 export function convertTediousArrayRow<RT extends RowType> (tediousArrayRow: TediousArrayRow, rowType: RT) : Row<RT>;
 export function convertTediousArrayRow (tediousArrayRow: TediousArrayRow, rowType: RowType) : Row<RowType> {
    switch (rowType) {
@@ -138,9 +140,12 @@ export function convertTediousArrayRow (tediousArrayRow: TediousArrayRow, rowTyp
       default: {
          assert(false, `Invalid row type "${rowType}".`); }}}
 
-// Converts a `TediousArrayRow` into an `ObjectRow`.
-// For duplicate column names only the first value is used.
-function convertTediousArrayRowToObjectRow (tediousArrayRow: TediousArrayRow) : ObjectRow {
+/**
+* Converts a `TediousArrayRow` into an `ObjectRow`.
+*
+* For duplicate column names only the first value is used.
+*/
+export function convertTediousArrayRowToObjectRow (tediousArrayRow: TediousArrayRow) : ObjectRow {
    const objectRow: ObjectRow = createBareObject();
    for (const e of tediousArrayRow) {
       const colName = e.metadata.colName;
@@ -148,9 +153,26 @@ function convertTediousArrayRowToObjectRow (tediousArrayRow: TediousArrayRow) : 
          objectRow[colName] = e.value; }}
    return objectRow; }
 
-// Converts a `TediousArrayRow` into a `MapRow`.
-// For duplicate column names only the first value is used.
-function convertTediousArrayRowToMapRow (tediousArrayRow: TediousArrayRow) : MapRow {
+/**
+* Converts an `ArrayRow` into an `ObjectRow`.
+*
+* For duplicate column names only the first value is used.
+*/
+export function convertArrayRowToObjectRow (arrayRow: ArrayRow, metadata: ArrayRowMetadata) : ObjectRow {
+   assert(arrayRow.length == metadata.length);
+   const objectRow: ObjectRow = createBareObject();
+   for (let i = 0; i < arrayRow.length; i++) {
+      const colName = metadata[i].colName;
+      if (!(colName in objectRow)) {
+         objectRow[colName] = arrayRow[i]; }}
+   return objectRow; }
+
+/**
+* Converts a `TediousArrayRow` into a `MapRow`.
+*
+* For duplicate column names only the first value is used.
+*/
+export function convertTediousArrayRowToMapRow (tediousArrayRow: TediousArrayRow) : MapRow {
    const mapRow: MapRow = new Map();
    for (const e of tediousArrayRow) {
       const colName = e.metadata.colName;
@@ -161,7 +183,8 @@ function convertTediousArrayRowToMapRow (tediousArrayRow: TediousArrayRow) : Map
 /**
 * The metadata of a result set row, with one array entry per column.
 *
-* This is the metadata array that Tedious provides with the `columnMetadata` event of a `Request`.
+* This is the metadata array that Tedious provides with the `columnMetadata` event of a `Request`
+* when `config.options.useColumnNames` is `false`, which is the case when using this package.
 *
 * Example:
 * ```js
@@ -171,13 +194,13 @@ function convertTediousArrayRowToMapRow (tediousArrayRow: TediousArrayRow) : Map
 * ]
 * ```
 */
-export type RowMetadata = Tedious_ArrayRowMetadata;
+export type ArrayRowMetadata = Tedious_ArrayRowMetadata;
 
 /**
 * The metadata of a result set row, with one object property per column.
 *
 * This is the metadata object that Tedious would have sent with the `columnMetadata` event of a `Request`
-* when `config.options.useColumnNames` was set.
+* when `config.options.useColumnNames` was `true`.
 *
 * Example:
 * ```js
