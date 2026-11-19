@@ -1,5 +1,6 @@
 $$BackupControl.txt
 *.bat
+!/scripting-deployment/*.bat
 /apiDoc/
 CLAUDE.local.md
 dist/
@@ -7,6 +8,8 @@ node_modules/
 notes.txt
 /old/
 package-lock.json
+/scripting-deployment/r.bat
+/scripting-deployment/tedious-plus.zip
 tempBuild*/
 todo.txt
 /wiki/

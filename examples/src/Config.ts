@@ -11,8 +11,8 @@ export const connectionConfig: ConnectionConfiguration = {
    },
    options: {
       database:                process.env.TEDIOUS_PLUS_EXAMPLE_DATABASE ?? "master",
-      // Accepts a self-signed server certificate, e.g. of a local development server. Don't use this in production.
       trustServerCertificate:  true,
+         // Accepts a self-signed server certificate, e.g. of a local development server.
       abortTransactionOnError: true,
       appName:                 "tedious-plus-examples"
    }

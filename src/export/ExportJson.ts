@@ -85,6 +85,9 @@ function isBigIntColumn (colMetadata: Tedious_ColumnMetadata) : boolean {
 
 // Formats a date/time value. Only the column data types `date` and `time` need a special format.
 // Tedious delivers `time` values as a `Date` on 1970-01-01.
+//
+// Note that for `DateTimeOffset` values the time zone information is not correct.
+// See https://github.com/tediousjs/tedious/issues/1107#issuecomment-6917723157
 function formatDateValue (value: Date, colMetadata: Tedious_ColumnMetadata) : string {
    const isoString = value.toISOString();
    switch (colMetadata.type.name) {

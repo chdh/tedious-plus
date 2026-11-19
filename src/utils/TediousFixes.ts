@@ -68,6 +68,14 @@ export function checkConnectionOptions (connection: Tedious.Connection | undefin
       return "The Tedious connection option rowCollectionOnRequestCompletion is not compatible with this package."; }
    return undefined; }
 
+// Verifies that the connection options are compatible for import/export.
+export function checkConnectionOptionsForImportExport (connection: Tedious.Connection) {
+   const options = connection.config?.options;
+   if (!options) {
+      return; }
+   if (!options.useUTC) {
+      throw new Error("The Tedious connection option useUTC=false is not supported for data import/export."); }}
+
 // This is a copy of the function `toColumnsMap()` in Tedious/src/token/row-token-parser.ts.
 // It converts a `Tedious_ArrayRow` into a `Tedious_ObjectRow`.
 export function convertTediousArrayRowToTediousObjectRow (arrayRow: Tedious_ArrayRow) : Tedious_ObjectRow {

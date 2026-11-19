@@ -30,11 +30,11 @@ async function main() {
    // Export into ZIP file.
    const zipFilePath = path.join(tempDir, "example3.zip");
    await conn.exportQuery(sql, {
-         output: {type: "zip", zipPath: zipFilePath, entryName: "objects.jsonl"} });
+         output: {type: "zip", zipPath: zipFilePath, entryName: "obj.jsonl"} });
 
    // Add another entry to the ZIP file.
    await conn.exportQuery(sql, {
-         output: {type: "zip", zipPath: zipFilePath, entryName: "arrays.jsonl", ifExists: "addEntry"},
+         output: {type: "zip", zipPath: zipFilePath, entryName: "arr.jsonl", ifExists: "addEntry"},
          format: {type: "jsonl", rowShape: "array"} });
 
    console.log(`Export files written to "${tempDir}".`);

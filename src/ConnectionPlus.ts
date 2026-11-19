@@ -6,7 +6,7 @@
 
 import * as Tedious from "tedious";
 import {getTypeName} from "./utils/Utils.ts";
-import {dummyCallback} from "./utils/TediousFixes.ts";
+import * as TediousFixes from "./utils/TediousFixes.ts";
 import * as TediousUtils from "./utils/TediousUtils.ts";
 import {type Row, type RowType, type SqlParamDefVariants, type SqlParamDef, type RequestResult, type JsValue, type JsValueDataType, testJsValueDataType} from "./utils/TediousUtils.ts";
 import * as ExportMain from "./export/ExportMain.ts";
@@ -310,8 +310,7 @@ export class ConnectionPlus implements AsyncDisposable {
    *    A promise for the number of rows exported. The promise is rejected when the query or the export fails.
    */
    public async exportQuery (sql: string, options: ExportQueryOptions) : Promise<number> {
-      if (!this.connection.config.options.useUTC) {
-         throw new Error("The Tedious connection option useUTC=false is not supported for data export."); }
+      TediousFixes.checkConnectionOptionsForImportExport(this.connection);
       await using iterator = this.queryIterator(sql, {...options, rowType: "ArrayRow"});
       const metadata = await iterator.getMetadata();
       const rowCount = await ExportMain.exportRows(iterator, metadata, options);
@@ -320,7 +319,7 @@ export class ConnectionPlus implements AsyncDisposable {
 //--- Helper functions ---------------------------------------------------------
 
 function createRequest (sql: string, options?: CommonRequestOptions) {
-   const request = new Tedious.Request(sql, dummyCallback);
+   const request = new Tedious.Request(sql, TediousFixes.dummyCallback);
    if (options?.timeoutMs !== undefined) {
       request.setTimeout(options.timeoutMs); }
    const paramDefs = TediousUtils.genParamDefArrayFromVariants(options);

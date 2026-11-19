@@ -74,6 +74,14 @@ const rowCount = await conn.exportQuery("select * from t1",
 
 More examples can be found in the [examples](https://github.com/chdh/tedious-plus/tree/main/examples) directory.
 
+## Scripting
+
+Scripts that use `tedious-plus` can be deployed together with all their dependencies as a single ZIP file,
+without a `node_modules` directory. A small module loader makes Node.js load the packages directly from
+the ZIP file. This is useful for running database scripts on machines where no `npm install` should be
+done. See the [scripting-deployment](https://github.com/chdh/tedious-plus/tree/main/scripting-deployment)
+directory for details.
+
 ## Modules
 
 <!-- API-MODULES:START -->
